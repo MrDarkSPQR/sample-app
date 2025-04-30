@@ -1,22 +1,26 @@
 #!/bin/bash
 
-mkdir tempdir
-mkdir tempdir/templates
-mkdir tempdir/static
+rm -rf tempdir
+mkdir -p tempdir/templates tempdir/static
 
-cp sample_app.py tempdir/.
-cp -r templates/* tempdir/templates/.
-cp -r static/* tempdir/static/.
+cp sample_app.py tempdir/main.py
+cp -r templates/* tempdir/templates/
+cp -r static/* tempdir/static/
 
-echo "FROM python" >> tempdir/Dockerfile
-echo "RUN pip install flask" >> tempdir/Dockerfile
-echo "COPY  ./static /home/myapp/static/" >> tempdir/Dockerfile
-echo "COPY  ./templates /home/myapp/templates/" >> tempdir/Dockerfile
-echo "COPY  sample_app.py /home/myapp/" >> tempdir/Dockerfile
-echo "EXPOSE 8080" >> tempdir/Dockerfile
-echo "CMD python /home/myapp/sample_app.py" >> tempdir/Dockerfile
+cat <<EOF > tempdir/Dockerfile
+FROM tiangolo/uwsgi-nginx-flask:python3.8
+COPY ./static /app/static/
+COPY ./templates /app/templates/
+COPY main.py /app/
+EXPOSE 5050
+EOF
 
 cd tempdir
 docker build -t sampleapp .
-docker run -t -d -p 8080:8080 --name samplerunning sampleapp
-docker ps -a 
+docker rm -f samplerunning 2>/dev/null
+docker run -t -d \
+  --name samplerunning \
+  -p 5050:80 \
+  --ulimit nofile=65535:65535 \
+  --ulimit nproc=65535 \
+  sampleapp
